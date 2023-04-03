@@ -1,3 +1,3 @@
-FROM alpine:3.17
+FROM ubuntu:20.04
 ADD vault-exporter /usr/bin
-ENTRYPOINT ["/usr/bin/vault-exporter"]
+CMD ["/usr/bin/vault-exporter"]
