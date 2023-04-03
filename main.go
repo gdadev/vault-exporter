@@ -32,6 +32,9 @@ var (
 	sslInsecure = kingpin.Flag("insecure-ssl",
 		"Set SSL to ignore certificate validation.").
 		Default("false").Bool()
+	baypassAuth = kingpin.Flag("baypass-auth",
+		"Baypass kubernetes authentication").
+		Default("false").Bool()
 )
 
 const (
@@ -77,27 +80,29 @@ type Exporter struct {
 func NewExporter(logger micrologger.Logger) (*Exporter, error) {
 	vaultConfig := vault_api.DefaultConfig()
 
-	if *sslInsecure {
-		tlsconfig := &vault_api.TLSConfig{
-			Insecure: true,
+	if !*baypassAuth {
+		if *sslInsecure {
+			tlsconfig := &vault_api.TLSConfig{
+				Insecure: true,
+			}
+			err := vaultConfig.ConfigureTLS(tlsconfig)
+			if err != nil {
+				return nil, microerror.Mask(err)
+			}
 		}
-		err := vaultConfig.ConfigureTLS(tlsconfig)
-		if err != nil {
-			return nil, microerror.Mask(err)
-		}
-	}
 
-	if *vaultCACert != "" || *vaultClientCert != "" || *vaultClientKey != "" {
+		if *vaultCACert != "" || *vaultClientCert != "" || *vaultClientKey != "" {
 
-		tlsconfig := &vault_api.TLSConfig{
-			CACert:     *vaultCACert,
-			ClientCert: *vaultClientCert,
-			ClientKey:  *vaultClientKey,
-			Insecure:   *sslInsecure,
-		}
-		err := vaultConfig.ConfigureTLS(tlsconfig)
-		if err != nil {
-			return nil, microerror.Mask(err)
+			tlsconfig := &vault_api.TLSConfig{
+				CACert:     *vaultCACert,
+				ClientCert: *vaultClientCert,
+				ClientKey:  *vaultClientKey,
+				Insecure:   *sslInsecure,
+			}
+			err := vaultConfig.ConfigureTLS(tlsconfig)
+			if err != nil {
+				return nil, microerror.Mask(err)
+			}
 		}
 	}
 
