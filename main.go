@@ -80,29 +80,27 @@ type Exporter struct {
 func NewExporter(logger micrologger.Logger) (*Exporter, error) {
 	vaultConfig := vault_api.DefaultConfig()
 
-	if !*baypassAuth {
-		if *sslInsecure {
-			tlsconfig := &vault_api.TLSConfig{
-				Insecure: true,
-			}
-			err := vaultConfig.ConfigureTLS(tlsconfig)
-			if err != nil {
-				return nil, microerror.Mask(err)
-			}
+	if *sslInsecure {
+		tlsconfig := &vault_api.TLSConfig{
+			Insecure: true,
 		}
+		err := vaultConfig.ConfigureTLS(tlsconfig)
+		if err != nil {
+			return nil, microerror.Mask(err)
+		}
+	}
 
-		if *vaultCACert != "" || *vaultClientCert != "" || *vaultClientKey != "" {
+	if *vaultCACert != "" || *vaultClientCert != "" || *vaultClientKey != "" {
 
-			tlsconfig := &vault_api.TLSConfig{
-				CACert:     *vaultCACert,
-				ClientCert: *vaultClientCert,
-				ClientKey:  *vaultClientKey,
-				Insecure:   *sslInsecure,
-			}
-			err := vaultConfig.ConfigureTLS(tlsconfig)
-			if err != nil {
-				return nil, microerror.Mask(err)
-			}
+		tlsconfig := &vault_api.TLSConfig{
+			CACert:     *vaultCACert,
+			ClientCert: *vaultClientCert,
+			ClientKey:  *vaultClientKey,
+			Insecure:   *sslInsecure,
+		}
+		err := vaultConfig.ConfigureTLS(tlsconfig)
+		if err != nil {
+			return nil, microerror.Mask(err)
 		}
 	}
 
@@ -148,22 +146,24 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 		return
 	}
 
-	k8sAuth, err := auth.NewKubernetesAuth("healthcheck")
-	if err != nil {
-		ch <- prometheus.MustNewConstMetric(
-			up, prometheus.GaugeValue, 0,
-		)
-		e.logger.Errorf(context.Background(), err, "Failed to initialize k8s auth")
-		return
-	}
+	if !*baypassAuth {
+		k8sAuth, err := auth.NewKubernetesAuth("healthcheck")
+		if err != nil {
+			ch <- prometheus.MustNewConstMetric(
+				up, prometheus.GaugeValue, 0,
+			)
+			e.logger.Errorf(context.Background(), err, "Failed to initialize k8s auth")
+			return
+		}
 
-	_, err = e.client.Auth().Login(context.Background(), k8sAuth)
-	if err != nil {
-		ch <- prometheus.MustNewConstMetric(
-			up, prometheus.GaugeValue, 0,
-		)
-		e.logger.Errorf(context.Background(), err, "Failed to authenticate using kubernetes auth")
-		return
+		_, err = e.client.Auth().Login(context.Background(), k8sAuth)
+		if err != nil {
+			ch <- prometheus.MustNewConstMetric(
+				up, prometheus.GaugeValue, 0,
+			)
+			e.logger.Errorf(context.Background(), err, "Failed to authenticate using kubernetes auth")
+			return
+		}
 	}
 
 	ch <- prometheus.MustNewConstMetric(
